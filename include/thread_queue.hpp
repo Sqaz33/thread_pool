@@ -26,18 +26,18 @@ namespace thread_queue {
         bool done_ = false;
         
     private:
-        bool empty_() const noexcept; // TODO: race ??
+        bool empty_() const noexcept;
         bool isDone_() const noexcept;
     };
 
     template <typename F, typename... Args>
     auto createTask(F f, Args&&... args) {
-        std::packaged_task<std::remove_pointer_t<F>> pf(f);
-        auto fut = pf.get_future();
+        std::packaged_task<std::remove_pointer_t<F>> packagedF{f};
+        auto fut = packagedF.get_future();
         task_t tsk = {
-            [f = std::move(pf), args = std::make_tuple(args...)]() {
+            [packagedF = std::move(packagedF), args = std::make_tuple(args...)] () mutable {
                 std::apply(
-                        [f = std::move(f)](Args&&... args) { f(args...); },
+                        [packagedF = std::move(packagedF)] (auto&&... args)  mutable { packagedF(args...); },
                         std::move(args)
                     );
                 return 0;
@@ -45,6 +45,7 @@ namespace thread_queue {
         };
         return std::make_pair(std::move(tsk), std::move(fut));
     }
+
 
 }  // namespace thread_queue
 
