@@ -5,12 +5,9 @@
 #include <initializer_list>
 #include <algorithm>
 #include <vector>
+#include <chrono>
 
 #include "../include/thread_pool.hpp"
-
-int sum(int a, int b) {
-    return a + b;
-}
 
 // namespace {
 
@@ -74,14 +71,28 @@ int main() {
             m.m[i][j] = i;
         }
     }
+    
 
-    std::vector<matrix> m1(1000, m);
+    std::vector<matrix> m1(100, m);
     auto m2 = m1;
-    std::vector<matrix> res(1000);
+    std::vector<matrix> res(100, m);
+
+    std::vector<size_t> ids;
+
+    auto start = std::chrono::high_resolution_clock::now();
 
 
-    for (size_t i = 0; i < 1000; ++i) {
-        threadPool.pushTask(multiplyMatrix, m1[i], m2[i], res[i]);
+    for (size_t i = 0; i < 100; ++i) {
+        ids.push_back(threadPool.pushTask(multiplyMatrix, m1[i], m2[i], res[i]));
     }
+
+    for (auto id : ids) {
+        threadPool.waitTask(id);
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+    std::cout << "Time taken: " << duration.count() << " ms" << std::endl;
 
 }

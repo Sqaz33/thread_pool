@@ -5,7 +5,7 @@
 namespace thread_queue {
 
 void UnboundedThreadQueue::pushTask(task_t&& tsk) {
-    std::lock_guard<std::mutex> lk{mut_};
+    std::lock_guard<std::mutex> lk{mut_}; 
     queue_.push(std::move(tsk));
     prodCond_.notify_one();
 }
@@ -19,6 +19,7 @@ void UnboundedThreadQueue::popTask(task_t& tsk) {
 }
 
 void UnboundedThreadQueue::setDone() {
+    std::lock_guard<std::mutex> lk{mut_}; 
     done_ = true;
     prodCond_.notify_all();
 }
