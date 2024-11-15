@@ -46,6 +46,7 @@ namespace impl__ {
     public:
         template <typename F, typename... Args>
         taskID pushTask(F f, Args&&... args) {
+            // std::lock_guard<std::mutex> lk{mut_};
             auto [tsk, fut] = thread_queue::createTask(std::move(f), std::forward<Args>(args)...);
             queue_.pushTask(std::move(tsk));
             auto id = moveID_();
@@ -71,6 +72,7 @@ namespace impl__ {
         std::vector<std::thread> consumers_;
         thread_queue::UnboundedThreadQueue queue_;
         taskID curTaskID_ = initID();
+        // std::mutex mut_;
 
     private:
         size_t minConsumersCount_() const noexcept { return 1; }
