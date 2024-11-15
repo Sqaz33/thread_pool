@@ -26,7 +26,7 @@ namespace thread_queue {
         bool done_ = false;
         
     private:
-        bool empty_() const noexcept; // race ??
+        bool empty_() const noexcept; // TODO: race ??
         bool isDone_() const noexcept;
     };
 

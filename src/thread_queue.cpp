@@ -12,9 +12,10 @@ void UnboundedThreadQueue::pushTask(task_t&& tsk) {
 
 void UnboundedThreadQueue::popTask(task_t& tsk) {
     std::unique_lock<std::mutex> lk{mut_};
-    prodCond_.wait(lk, [this] { return !empty_(); /* rase ??? */}); 
+    prodCond_.wait(lk, [this] { return !empty_() || isDone_(); }); 
     if (isDone_()) return;
-    tsk = std::move(tsk);
+    tsk = std::move(queue_.front());
+    queue_.pop();
 }
 
 void UnboundedThreadQueue::setDone() {
