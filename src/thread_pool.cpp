@@ -1,10 +1,6 @@
 #include "../include/thread_pool.hpp"
 
-#include <thread>
-#include <utility>
-
-
-namespace thread_pool {
+namespace impl__ {
 
 taskID initID() noexcept { return 0; }
 taskID getNextId(const taskID& ID) noexcept { return ID + 1; }

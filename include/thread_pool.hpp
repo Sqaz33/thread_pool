@@ -2,25 +2,26 @@
 #define INCLUDE_THREAD_POOL_HPP
 
 #include <any>
+#include <atomic>
 #include <mutex>
+#include <queue>
 #include <thread>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
-#include <atomic>
-#include <queue>
 
 #include "thread_queue.hpp"
 
-namespace thread_pool {
+namespace impl__ {
     template <typename T>
-    class ThreadPool;
+    class ThreadPool_impl;
 }
 
 namespace detail__ {
     inline std::atomic_bool boolDropped_ = false;
 
     template <typename T>
-    void consumerWork(thread_pool::ThreadPool<T>* threadPool) {
+    void consumerWork(impl__::ThreadPool_impl<T>* threadPool) {
         thread_queue::task_t tsk;
         for (;;) {
             threadPool->queue_.popTask(tsk);
@@ -31,27 +32,18 @@ namespace detail__ {
 
 } // namespace detail__
 
-namespace thread_pool {
 
+namespace impl__ {
+    
     using taskID = size_t;
 
     taskID initID() noexcept;
-    taskID getNextId(const taskID& ID) noexcept;
-    
+    taskID getNextId(const taskID& ID) noexcept;   
 
     template <typename T>
-    class ThreadPool {
+    class ThreadPool_impl {
+
     public:
-        ThreadPool() {
-            setConsumers_(recomendConsumersCount_());
-            detachConsumers_();
-        }
-
-        ~ThreadPool() {
-            detail__::boolDropped_ = true;
-            queue_.setDone(); 
-        }
-
         template <typename F, typename... Args>
         taskID pushTask(F f, Args&&... args) {
             auto [tsk, fut] = thread_queue::createTask(std::move(f), std::forward<Args>(args)...);
@@ -59,22 +51,36 @@ namespace thread_pool {
             auto id = moveID_();
             future_.emplace(id, std::move(fut));
             return id;
+        } 
+
+    protected:
+        ThreadPool_impl() {
+            setConsumers_(recomendConsumersCount_());
+            detachConsumers_();
         }
 
-        void popResult(const taskID& ID, T& res) {
-            res = future_[ID].get();
-            future_.erase(ID);
-        } 
-    
-    private:
+        ~ThreadPool_impl() {
+            detail__::boolDropped_ = true;
+            queue_.setDone(); 
+        }
 
+    protected:
+        std::unordered_map<taskID, std::future<T>> future_;
+        
+    private:
         std::vector<std::thread> consumers_;
-        std::unordered_map<taskID, std::future<int>> future_;
         thread_queue::UnboundedThreadQueue queue_;
         taskID curTaskID_ = initID();
-    
+
     private:
-        friend void detail__::consumerWork<T>(ThreadPool<T>*);
+        size_t minConsumersCount_() const noexcept { return 1; }
+        size_t recomendConsumersCount_() const noexcept {
+            return std::thread::hardware_concurrency() - 1;
+        }
+
+        taskID moveID_() {
+            return std::exchange(curTaskID_, getNextId(curTaskID_));
+        }
 
         void setConsumers_(size_t count) {
             for (int i = 0; i < count; ++i) {
@@ -88,14 +94,34 @@ namespace thread_pool {
             }
         }
 
-        size_t minConsumersCount_() const noexcept { return 1; }
-        size_t recomendConsumersCount_() const noexcept {
-            return std::thread::hardware_concurrency()  - 1;
-        }
+        template <typename U>
+        friend void detail__::consumerWork(ThreadPool_impl<U>*);
+    };
 
-        taskID moveID_() {
-            return std::exchange(curTaskID_, getNextId(curTaskID_));
-        }
+} // namespase impr__
+
+
+namespace thread_pool {
+    
+    using taskID = impl__::taskID;
+
+    template <class T>
+    class ThreadPool final : public impl__::ThreadPool_impl<T> {
+    public:
+        void waitNPopResult(const taskID& ID, T& res) {
+            res = impl__::ThreadPool_impl<T>::future_[ID].get();
+            impl__::ThreadPool_impl<T>::future_.erase(ID);
+        } 
+    };
+
+
+    template <>
+    class ThreadPool<void> final : public impl__::ThreadPool_impl<void> {
+    public:
+        void waitTask(const taskID& ID) {
+            impl__::ThreadPool_impl<void>::future_[ID].get();
+            impl__::ThreadPool_impl<void>::future_.erase(ID);
+        } 
     };
 
 } // namespace thread_pool
