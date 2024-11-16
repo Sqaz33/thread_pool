@@ -9,6 +9,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+#include <latch>
 
 #include "thread_queue.hpp"
 
@@ -18,16 +19,16 @@ namespace impl__ {
 }
 
 namespace detail__ {
-    inline std::atomic_bool boolDropped_ = false;
 
     template <typename T>
-    void consumerWork(impl__::ThreadPool_impl<T>* threadPool) {
+    void consumerWork(impl__::ThreadPool_impl<T>* threadPool, std::latch& L) {
         thread_queue::task_t tsk;
         for (;;) {
             threadPool->queue_.popTask(tsk);
-            if (boolDropped_)  break; 
-            std::exchange(tsk, nullptr)();
+            if (tsk) std::exchange(tsk, nullptr)();
+            else break;
         }
+        L.count_down();
     }
 
 } // namespace detail__
@@ -46,7 +47,6 @@ namespace impl__ {
     public:
         template <typename F, typename... Args>
         taskID pushTask(F f, Args&&... args) {
-            // std::lock_guard<std::mutex> lk{mut_};
             auto [tsk, fut] = thread_queue::createTask(std::move(f), std::forward<Args>(args)...);
             queue_.pushTask(std::move(tsk));
             auto id = moveID_();
@@ -55,14 +55,14 @@ namespace impl__ {
         } 
 
     protected:
-        ThreadPool_impl() {
+        ThreadPool_impl() : threadsWaiter_(recomendConsumersCount_()) {
             setConsumers_(recomendConsumersCount_());
             detachConsumers_();
         }
 
         ~ThreadPool_impl() {
-            detail__::boolDropped_ = true;
             queue_.setDone(); 
+            waitAllThreads_();
         }
 
     protected:
@@ -72,7 +72,7 @@ namespace impl__ {
         std::vector<std::thread> consumers_;
         thread_queue::UnboundedThreadQueue queue_;
         taskID curTaskID_ = initID();
-        // std::mutex mut_;
+        std::latch threadsWaiter_;
 
     private:
         size_t minConsumersCount_() const noexcept { return 1; }
@@ -86,7 +86,7 @@ namespace impl__ {
 
         void setConsumers_(size_t count) {
             for (int i = 0; i < count; ++i) {
-                consumers_.emplace_back(detail__::consumerWork<T>, this);
+                consumers_.emplace_back(detail__::consumerWork<T>, this, std::ref(threadsWaiter_));
             }
         }
 
@@ -96,8 +96,12 @@ namespace impl__ {
             }
         }
 
+        void waitAllThreads_() {
+            threadsWaiter_.wait();
+        }
+
         template <typename U>
-        friend void detail__::consumerWork(ThreadPool_impl<U>*);
+        friend void detail__::consumerWork(ThreadPool_impl<U>*, std::latch&);
     };
 
 } // namespase impr__
@@ -115,7 +119,6 @@ namespace thread_pool {
             impl__::ThreadPool_impl<T>::future_.erase(ID);
         } 
     };
-
 
     template <>
     class ThreadPool<void> final : public impl__::ThreadPool_impl<void> {

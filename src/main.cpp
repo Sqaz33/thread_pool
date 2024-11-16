@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <vector>
 #include <chrono>
+#include <string>
+#include <cstring>
 
 #include "../include/thread_pool.hpp"
 
@@ -59,31 +61,44 @@ void multiplyMatrix(const matrix& a, const matrix& b, matrix& res) {
 
 
 
-int main() {
+int main(int argc, char** argv) {
+    int mSize = 100;
+    int mCount = 1000;
+    if (argc > 2) {
+        std::string str(argv[1]);
+        mSize = std::stoi(str);
+        if (argc == 3) {
+            str = argv[2];
+            mCount = std::stoi(str);
+        }
+    }
+    
+
     thread_pool::ThreadPool<void> threadPool;
 
     // auto id = threadPool.pushTask(sum, 1, 2);
     // int res = 0;
     // threadPool.waitNPopResult(id, res);
-    matrix m(100, 100);
-    for (size_t i = 0; i < 100; ++i) {
-        for (size_t j = 0; j < 100; ++j) {
+    matrix m(mSize, mSize);
+    for (size_t i = 0; i < mSize; ++i) {
+        for (size_t j = 0; j < mSize; ++j) {
             m.m[i][j] = i;
         }
     }
     
 
-    std::vector<matrix> m1(100, m);
+    std::vector<matrix> m1(mCount, m);
     auto m2 = m1;
-    std::vector<matrix> res(100, m);
+    std::vector<matrix> res(mCount, m);
 
     std::vector<size_t> ids;
 
     auto start = std::chrono::high_resolution_clock::now();
 
 
-    for (size_t i = 0; i < 100; ++i) {
+    for (size_t i = 0; i < mCount; ++i) {
         ids.push_back(threadPool.pushTask(multiplyMatrix, m1[i], m2[i], res[i]));
+        // multiplyMatrix(m1[i], m2[i], res[i]);
     }
 
     for (auto id : ids) {
