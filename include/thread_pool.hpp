@@ -21,10 +21,10 @@ namespace impl__ {
 namespace detail__ {
 
     template <typename T>
-    void consumerWork(impl__::ThreadPool_impl<T>* threadPool, std::latch& L) {
+    void consumerWork(thread_queue::UnboundedThreadQueue& queue, std::latch& L) {
         thread_queue::task_t tsk;
         for (;;) {
-            threadPool->queue_.popTask(tsk);
+            queue.popTask(tsk);
             if (tsk) std::exchange(tsk, nullptr)();
             else break;
         }
@@ -55,6 +55,11 @@ namespace impl__ {
         } 
 
     protected:
+        ThreadPool_impl(size_t threadCount) : threadsWaiter_(threadCount) {
+            setConsumers_(threadCount);
+            detachConsumers_();
+        }
+
         ThreadPool_impl() : threadsWaiter_(recomendConsumersCount_()) {
             setConsumers_(recomendConsumersCount_());
             detachConsumers_();
@@ -86,7 +91,7 @@ namespace impl__ {
 
         void setConsumers_(size_t count) {
             for (int i = 0; i < count; ++i) {
-                consumers_.emplace_back(detail__::consumerWork<T>, this, std::ref(threadsWaiter_));
+                consumers_.emplace_back(detail__::consumerWork<T>, std::ref(queue_), std::ref(threadsWaiter_));
             }
         }
 
@@ -99,9 +104,6 @@ namespace impl__ {
         void waitAllThreads_() {
             threadsWaiter_.wait();
         }
-
-        template <typename U>
-        friend void detail__::consumerWork(ThreadPool_impl<U>*, std::latch&);
     };
 
 } // namespase impr__
@@ -114,6 +116,12 @@ namespace thread_pool {
     template <class T>
     class ThreadPool final : public impl__::ThreadPool_impl<T> {
     public:
+        ThreadPool() = default;
+
+        ThreadPool(size_t threadCount) : 
+            impl__::ThreadPool_impl<T>(threadCount) 
+        {}
+
         void waitNPopResult(const taskID& ID, T& res) {
             res = impl__::ThreadPool_impl<T>::future_[ID].get();
             impl__::ThreadPool_impl<T>::future_.erase(ID);
@@ -123,6 +131,12 @@ namespace thread_pool {
     template <>
     class ThreadPool<void> final : public impl__::ThreadPool_impl<void> {
     public:
+        ThreadPool() = default;
+
+        ThreadPool(size_t threadCount) : 
+            impl__::ThreadPool_impl<void>(threadCount) 
+        {}
+
         void waitTask(const taskID& ID) {
             impl__::ThreadPool_impl<void>::future_[ID].get();
             impl__::ThreadPool_impl<void>::future_.erase(ID);

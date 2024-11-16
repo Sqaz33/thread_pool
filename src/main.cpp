@@ -11,7 +11,7 @@
 
 #include "../include/thread_pool.hpp"
 
-// namespace {
+namespace {
 
 struct matrix {
     matrix() = default;
@@ -56,29 +56,30 @@ void multiplyMatrix(const matrix& a, const matrix& b, matrix& res) {
     }
 }
 
-
-// } // namespace 
-
+} // namespace 
 
 
 int main(int argc, char** argv) {
     int mSize = 100;
     int mCount = 1000;
+    size_t threadCount = std::thread::hardware_concurrency();
     if (argc > 2) {
         std::string str(argv[1]);
         mSize = std::stoi(str);
-        if (argc == 3) {
+        if (argc >= 3) {
             str = argv[2];
             mCount = std::stoi(str);
+        }
+        if (argc >= 4) {
+            str = argv[3];
+            threadCount = std::stoi(str);
         }
     }
     
 
-    thread_pool::ThreadPool<void> threadPool;
+    thread_pool::ThreadPool<void> threadPool(threadCount);
 
-    // auto id = threadPool.pushTask(sum, 1, 2);
-    // int res = 0;
-    // threadPool.waitNPopResult(id, res);
+
     matrix m(mSize, mSize);
     for (size_t i = 0; i < mSize; ++i) {
         for (size_t j = 0; j < mSize; ++j) {
@@ -86,7 +87,6 @@ int main(int argc, char** argv) {
         }
     }
     
-
     std::vector<matrix> m1(mCount, m);
     auto m2 = m1;
     std::vector<matrix> res(mCount, m);
@@ -97,8 +97,11 @@ int main(int argc, char** argv) {
 
 
     for (size_t i = 0; i < mCount; ++i) {
-        ids.push_back(threadPool.pushTask(multiplyMatrix, m1[i], m2[i], res[i]));
-        // multiplyMatrix(m1[i], m2[i], res[i]);
+        if (threadCount > 0) {
+            ids.push_back(threadPool.pushTask(multiplyMatrix, m1[i], m2[i], res[i]));
+        } else {
+            multiplyMatrix(m1[i], m2[i], res[i]);
+        }
     }
 
     for (auto id : ids) {
