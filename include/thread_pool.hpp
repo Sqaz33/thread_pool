@@ -1,15 +1,11 @@
 #ifndef INCLUDE_THREAD_POOL_HPP
 #define INCLUDE_THREAD_POOL_HPP
 
-#include <any>
-#include <atomic>
-#include <mutex>
+#include <latch>
 #include <queue>
 #include <thread>
-#include <tuple>
 #include <unordered_map>
 #include <vector>
-#include <latch>
 
 #include "thread_queue.hpp"
 

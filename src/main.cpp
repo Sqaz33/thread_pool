@@ -1,13 +1,10 @@
 #include <iostream>
 #include <functional>
 #include <future>
-#include <array>
-#include <initializer_list>
 #include <algorithm>
 #include <vector>
 #include <chrono>
 #include <string>
-#include <cstring>
 
 #include "../include/thread_pool.hpp"
 
