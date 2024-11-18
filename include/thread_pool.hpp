@@ -31,19 +31,19 @@ void consumerWork(thread_queue::UnboundedTaskQueue& queue, std::latch& L) {
 
 }  // namespace detail__
 
+namespace task_id {
+    using taskID_t = size_t;
+    taskID_t initID() noexcept;
+    taskID_t getNextId(const taskID_t& ID) noexcept;
+}
+
 namespace impl__ {
-
-using taskID = size_t;
-
-taskID initID() noexcept;
-taskID getNextId(const taskID& ID) noexcept;
-
 template <typename T>
 class ThreadPool_impl {
 
    public:
     template <typename F, typename... Args>
-    taskID pushTask(F f, Args&&... args) {
+    task_id::taskID_t pushTask(F f, Args&&... args) {
         auto [tsk, fut] =
             thread_queue::createTask(std::move(f), std::forward<Args>(args)...);
         queue_.pushTask(std::move(tsk));
@@ -69,12 +69,12 @@ class ThreadPool_impl {
     }
 
    protected:
-    std::unordered_map<taskID, std::future<T>> future_;
+    std::unordered_map<task_id::taskID_t, std::future<T>> future_;
 
    private:
     std::vector<std::thread> consumers_;
     thread_queue::UnboundedTaskQueue queue_;
-    taskID curTaskID_ = initID();
+    task_id::taskID_t curtask_id::taskID_t_ = initID();
     std::latch threadsWaiter_;
 
    private:
@@ -83,8 +83,8 @@ class ThreadPool_impl {
         return std::thread::hardware_concurrency() - 1;
     }
 
-    taskID moveID_() {
-        return std::exchange(curTaskID_, getNextId(curTaskID_));
+    task_id::taskID_t moveID_() {
+        return std::exchange(curtask_id::taskID_t_, getNextId(curtask_id::taskID_t_));
     }
 
     void setConsumers_(size_t count) {
@@ -107,8 +107,6 @@ class ThreadPool_impl {
 
 namespace thread_pool {
 
-using taskID = impl__::taskID;
-
 template <class T>
 class ThreadPool final : public impl__::ThreadPool_impl<T> {
    public:
@@ -116,7 +114,7 @@ class ThreadPool final : public impl__::ThreadPool_impl<T> {
 
     ThreadPool(size_t threadCount) : impl__::ThreadPool_impl<T>(threadCount) {}
 
-    void waitNPopResult(const taskID& ID, T& res) {
+    void waitNPopResult(const task_id::taskID_t& ID, T& res) {
         res = impl__::ThreadPool_impl<T>::future_[ID].get();
         impl__::ThreadPool_impl<T>::future_.erase(ID);
     }
@@ -130,7 +128,7 @@ class ThreadPool<void> final : public impl__::ThreadPool_impl<void> {
     ThreadPool(size_t threadCount)
         : impl__::ThreadPool_impl<void>(threadCount) {}
 
-    void waitTask(const taskID& ID) {
+    void waitTask(const task_id::taskID_t& ID) {
         impl__::ThreadPool_impl<void>::future_[ID].get();
         impl__::ThreadPool_impl<void>::future_.erase(ID);
     }

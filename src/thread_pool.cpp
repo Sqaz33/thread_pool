@@ -1,12 +1,12 @@
 #include "../include/thread_pool.hpp"
 
-namespace impl__ {
+namespace task_id {
 
-taskID initID() noexcept {
+taskID_t initID() noexcept {
     return 0;
 }
-taskID getNextId(const taskID& ID) noexcept {
+taskID_t getNextId(const taskID_t& ID) noexcept {
     return ID + 1;
 }
 
-}  // namespace impl__
+}  // namespace task_id
