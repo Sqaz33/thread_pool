@@ -4,13 +4,13 @@
 
 namespace thread_queue {
 
-void UnboundedThreadQueue::pushTask(task_t&& tsk) {
+void UnboundedTaskQueue::pushTask(task_t&& tsk) {
     std::lock_guard<std::mutex> lk{mut_};
     queue_.push(std::move(tsk));
     prodCond_.notify_one();
 }
 
-void UnboundedThreadQueue::popTask(task_t& tsk) {
+void UnboundedTaskQueue::popTask(task_t& tsk) {
     std::unique_lock<std::mutex> lk{mut_};
     prodCond_.wait(lk, [this] { return !empty_() || isDone_(); });
     if (isDone_())
@@ -19,16 +19,16 @@ void UnboundedThreadQueue::popTask(task_t& tsk) {
     queue_.pop();
 }
 
-void UnboundedThreadQueue::setDone() {
+void UnboundedTaskQueue::setDone() {
     std::lock_guard<std::mutex> lk{mut_};
     done_ = true;
     prodCond_.notify_all();
 }
 
-bool UnboundedThreadQueue::empty_() const noexcept {
+bool UnboundedTaskQueue::empty_() const noexcept {
     return queue_.empty();
 }
-bool UnboundedThreadQueue::isDone_() const noexcept {
+bool UnboundedTaskQueue::isDone_() const noexcept {
     return done_;
 }
 

@@ -13,7 +13,7 @@ namespace thread_queue {
 using task_t = std::move_only_function<int()>;
 
 // lock based queue
-class UnboundedThreadQueue {
+class UnboundedTaskQueue {
    public:
     void pushTask(task_t&& tsk);
     void popTask(task_t& tsk);

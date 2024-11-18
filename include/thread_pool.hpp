@@ -17,7 +17,7 @@ class ThreadPool_impl;
 namespace detail__ {
 
 template <typename T>
-void consumerWork(thread_queue::UnboundedThreadQueue& queue, std::latch& L) {
+void consumerWork(thread_queue::UnboundedTaskQueue& queue, std::latch& L) {
     thread_queue::task_t tsk;
     for (;;) {
         queue.popTask(tsk);
@@ -73,7 +73,7 @@ class ThreadPool_impl {
 
    private:
     std::vector<std::thread> consumers_;
-    thread_queue::UnboundedThreadQueue queue_;
+    thread_queue::UnboundedTaskQueue queue_;
     taskID curTaskID_ = initID();
     std::latch threadsWaiter_;
 
