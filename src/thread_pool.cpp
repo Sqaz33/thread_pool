@@ -2,7 +2,11 @@
 
 namespace impl__ {
 
-taskID initID() noexcept { return 0; }
-taskID getNextId(const taskID& ID) noexcept { return ID + 1; }
+taskID initID() noexcept {
+    return 0;
+}
+taskID getNextId(const taskID& ID) noexcept {
+    return ID + 1;
+}
 
-} // namespace thread_pool
+}  // namespace impl__
